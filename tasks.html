@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>StudyBOT — Tasks & Deadlines</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg: radial-gradient(circle at top left, #181818, #0e0e0e);
+      --card: rgba(255,255,255,0.05);
+      --accent: #0d6efd;
+      --text: #e6eef8;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Orbitron', sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      position: fixed;
+      top: 0; left: 0;
+      height: 100vh; width: 240px;
+      background: var(--card);
+      border-right: 1px solid rgba(255,255,255,0.1);
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+      z-index: 1000;
+      padding-top: 1rem;
+    }
+    .sidebar.show { transform: translateX(0); }
+    .sidebar a {
+      color: #bbb;
+      display: block;
+      padding: 12px 20px;
+      text-decoration: none;
+      border-left: 3px solid transparent;
+      transition: all 0.3s;
+      font-size: 0.95rem;
+    }
+    .sidebar a:hover, .sidebar a.active {
+      background-color: rgba(13,110,253,0.2);
+      color: #fff;
+      border-left: 3px solid var(--accent);
+    }
+
+    /* Top bar */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: var(--card);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 500;
+    }
+    .toggle-btn {
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 1.5rem;
+    }
+
+    /* Layout */
+    .main-content {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 2rem;
+      padding: 2rem;
+    }
+
+    .task-card, .calendar-card {
+      background: var(--card);
+      border-radius: 14px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.4);
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 500px;
+      backdrop-filter: blur(10px);
+    }
+
+    .calendar-card {
+      max-width: 420px;
+    }
+
+    h4 {
+      color: var(--accent);
+      text-transform: uppercase;
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+    }
+
+    .add-task {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .add-task input, .add-task select {
+      flex: 1;
+      background: rgba(255,255,255,0.1);
+      border: none;
+      border-radius: 8px;
+      padding: 8px;
+      color: #fff;
+    }
+
+    .add-task button {
+      background: var(--accent);
+      border: none;
+      color: #fff;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    .task-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .task-item {
+      background: rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      font-size: 0.9rem;
+    }
+
+    .task-item.completed {
+      text-decoration: line-through;
+      color: #999;
+      background: rgba(255,255,255,0.05);
+    }
+
+    .priority-high { border-left: 4px solid #ff4d4d; }
+    .priority-medium { border-left: 4px solid #ffb84d; }
+    .priority-low { border-left: 4px solid #00e676; }
+
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .calendar-header select {
+      background: rgba(255,255,255,0.1);
+      border: none;
+      color: #fff;
+      border-radius: 6px;
+      padding: 6px;
+    }
+
+    .calendar table {
+      width: 100%;
+      text-align: center;
+      border-collapse: collapse;
+    }
+
+    .calendar th, .calendar td {
+      padding: 8px;
+    }
+
+    .calendar td.today {
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+    }
+
+    .calendar td.deadline {
+      background: #ff4d4d;
+      color: #fff;
+      border-radius: 50%;
+    }
+
+    @media(max-width: 992px) {
+      .main-content {
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar">
+    <a href="dashboard.html"><i class="bi bi-bar-chart"></i> Dashboard</a>
+    <a href="tasks.html" class="active"><i class="bi bi-check2-square"></i> Tasks</a>
+    <a href="library.html"><i class="bi bi-folder2"></i> Library</a>
+    <a href="settings.html"><i class="bi bi-gear"></i> Settings</a>
+  </nav>
+
+  <!-- Top bar -->
+  <div class="top-bar">
+    <button id="toggleSidebar" class="toggle-btn"><i class="bi bi-list"></i></button>
+    <h5 class="m-0">Tasks & Deadlines</h5>
+  </div>
+
+  <div class="main-content">
+    <div class="task-card">
+      <h4>📋 To-Do List</h4>
+      <div class="add-task">
+        <input type="text" id="taskInput" placeholder="Enter task...">
+        <input type="date" id="taskDeadline">
+        <select id="priority">
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+        </select>
+        <button id="addTask"><i class="bi bi-plus-lg"></i></button>
+      </div>
+      <ul id="taskList" class="task-list"></ul>
+    </div>
+
+    <div class="calendar-card">
+      <h4>📅 Calendar</h4>
+      <div class="calendar-header">
+        <button id="prevMonth" class="btn btn-outline-light btn-sm"><i class="bi bi-chevron-left"></i></button>
+        <select id="monthSelect"></select>
+        <select id="yearSelect"></select>
+        <button id="nextMonth" class="btn btn-outline-light btn-sm"><i class="bi bi-chevron-right"></i></button>
+      </div>
+      <div id="calendarContainer" class="calendar"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+    import { getDatabase, ref, set, get, update } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBxprN4rO7wpNPLCQtlfflNnxt24fZqagY",
+      authDomain: "study-bot-2b214.firebaseapp.com",
+      databaseURL: "https://study-bot-2b214-default-rtdb.firebaseio.com",
+      projectId: "study-bot-2b214",
+      storageBucket: "study-bot-2b214.firebasestorage.app",
+      messagingSenderId: "2198651031",
+      appId: "1:2198651031:web:f4a68ca2195568cae229d2",
+      measurementId: "G-XRFJW7YWC9"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    const sidebar = document.getElementById('sidebar');
+    document.getElementById('toggleSidebar').onclick = () => sidebar.classList.toggle('show');
+
+    const taskList = document.getElementById("taskList");
+    const taskInput = document.getElementById("taskInput");
+    const taskDeadline = document.getElementById("taskDeadline");
+    const priority = document.getElementById("priority");
+    const addTask = document.getElementById("addTask");
+
+    let uid = null;
+    let tasks = {};
+    let currentMonth = new Date().getMonth();
+    let currentYear = new Date().getFullYear();
+
+    const monthSelect = document.getElementById("monthSelect");
+    const yearSelect = document.getElementById("yearSelect");
+
+    for (let i = 0; i < 12; i++) {
+      const opt = document.createElement("option");
+      opt.value = i;
+      opt.text = new Date(0, i).toLocaleString("default", { month: "long" });
+      monthSelect.appendChild(opt);
+    }
+
+    const startYear = 2020, endYear = 2035;
+    for (let y = startYear; y <= endYear; y++) {
+      const opt = document.createElement("option");
+      opt.value = y;
+      opt.text = y;
+      yearSelect.appendChild(opt);
+    }
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        uid = user.uid;
+        loadTasks();
+      } else {
+        location.href = "index.html";
+      }
+    });
+
+    async function loadTasks() {
+      const snap = await get(ref(db, `users/${uid}/tasks`));
+      if (snap.exists()) tasks = snap.val();
+      renderTasks();
+      renderCalendar();
+    }
+
+    function renderTasks() {
+      taskList.innerHTML = "";
+      Object.keys(tasks).forEach((key) => {
+        const task = tasks[key];
+        const li = document.createElement("li");
+        li.className = `task-item priority-${task.priority} ${task.completed ? "completed" : ""}`;
+        li.innerHTML = `
+          <div><strong>${task.text}</strong><br><small>${task.deadline}</small></div>
+          <div>
+            <button class="btn btn-sm btn-outline-light" onclick="toggleTask('${key}')"><i class="bi bi-check2"></i></button>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteTask('${key}')"><i class="bi bi-trash"></i></button>
+          </div>
+        `;
+        taskList.appendChild(li);
+
+        // 🔔 Notification for deadline today
+        const today = new Date().toISOString().split("T")[0];
+        if (task.deadline === today && !task.completed) {
+          new Notification("StudyBOT Reminder", {
+            body: `⏰ Deadline today for "${task.text}"!`,
+            icon: "https://cdn-icons-png.flaticon.com/512/4762/4762311.png"
+          });
+        }
+      });
+      renderCalendar();
+    }
+
+    addTask.onclick = async () => {
+      const text = taskInput.value.trim();
+      const date = taskDeadline.value;
+      const pr = priority.value;
+      if (!text || !date) return;
+      const key = Date.now().toString();
+      tasks[key] = { text, deadline: date, priority: pr, completed: false };
+      await update(ref(db, `users/${uid}/tasks`), tasks);
+      taskInput.value = "";
+      renderTasks();
+    };
+
+    window.toggleTask = async (key) => {
+      tasks[key].completed = !tasks[key].completed;
+      await update(ref(db, `users/${uid}/tasks`), tasks);
+      renderTasks();
+    };
+
+    window.deleteTask = async (key) => {
+      delete tasks[key];
+      await set(ref(db, `users/${uid}/tasks`), tasks);
+      renderTasks();
+    };
+
+    function renderCalendar() {
+      monthSelect.value = currentMonth;
+      yearSelect.value = currentYear;
+
+      const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+      let html = "<table><tr>";
+      const weekdays = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+      weekdays.forEach(d => html += `<th>${d}</th>`);
+      html += "</tr><tr>";
+
+      for (let i = 0; i < firstDay; i++) html += "<td></td>";
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+        const hasDeadline = Object.values(tasks).some(t => t.deadline === dateStr);
+        const today = new Date().getDate() === d && new Date().getMonth() === currentMonth && new Date().getFullYear() === currentYear;
+        html += `<td class="${today ? "today" : hasDeadline ? "deadline" : ""}">${d}</td>`;
+        if ((firstDay + d) % 7 === 0) html += "</tr><tr>";
+      }
+
+      html += "</tr></table>";
+      document.getElementById("calendarContainer").innerHTML = html;
+    }
+
+    document.getElementById("prevMonth").onclick = () => {
+      currentMonth--;
+      if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+      renderCalendar();
+    };
+    document.getElementById("nextMonth").onclick = () => {
+      currentMonth++;
+      if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+      renderCalendar();
+    };
+
+    monthSelect.onchange = () => { currentMonth = parseInt(monthSelect.value); renderCalendar(); };
+    yearSelect.onchange = () => { currentYear = parseInt(yearSelect.value); renderCalendar(); };
+
+    if (Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+  </script>
+</body>
+</html>
